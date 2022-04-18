@@ -66,7 +66,7 @@ void ConnectService::searchIp()
                 QStringList lst;
                 lst << tempIp;
                 lst << "-n" << "1";
-                lst << "-w" << "10";
+                lst << "-w" << "1000";
                 int exitCode = pingProcess->execute("ping", lst);
                 if (exitCode == 0) {
                     this->addIp(tempIp);
@@ -135,7 +135,7 @@ void ConnectService::searchDevices()
         auto ip = this->ips[i];
         QNetworkRequest request;
         QUrl url;
-        url.setScheme("https");
+        url.setScheme("http");
         url.setHost(ip);
         url.setPort(7677);
         url.setPath("/connect");

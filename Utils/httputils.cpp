@@ -2,6 +2,7 @@
 
 #include <QtNetwork/QNetworkInterface>
 #include <QStringList>
+#include <QSysInfo>
 
 HttpUtils::HttpUtils(QObject * parent)
 {
@@ -40,7 +41,12 @@ QString HttpUtils::getLocalIp()
         }
     }
     qInfo("search finish\n");
-    return ips[1];
+    auto type = QSysInfo::productType();
+    if (type == "windows") {
+        return ips[0];
+    } else {
+        return ips[1];
+    }
 }
 
 QString HttpUtils::getGateWay(QString &localIp)
