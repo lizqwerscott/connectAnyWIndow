@@ -25,6 +25,7 @@ set(PROJECT_SOURCES
         ./loginDialog/logindialog.h
         ./loginDialog/logindialog.ui
 
+        ./Utils/head.h
         ./Utils/httputils.cpp
         ./Utils/httputils.h
         ./Utils/devices.cpp

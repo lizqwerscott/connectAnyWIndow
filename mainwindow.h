@@ -30,6 +30,7 @@ public slots:
     void onSendButtonClicked();
 
     void onSearchIpFinish();
+    void onSearchDeviceFinish();
 
 private:
     bool loadUserInfo();
@@ -40,6 +41,7 @@ private:
     Ui::MainWindow *ui;
 
     QStandardItemModel * ipModel;
+    QStandardItemModel * deviceModel;
     QTableView * ipView;
     QTableView * devicesView;
     QPushButton * searchIpButton;

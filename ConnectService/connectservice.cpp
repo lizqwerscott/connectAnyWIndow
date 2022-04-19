@@ -12,7 +12,7 @@
 
 #include "Utils/httputils.h"
 
-ConnectService::ConnectService(QObject * parent): QObject(parent), finishNum(0)
+ConnectService::ConnectService(QObject * parent): QObject(parent), finishNum(0), deviceFinishN(0)
 {
 }
 
@@ -47,8 +47,8 @@ void ConnectService::searchIp()
 {
     auto localIp = HttpUtils::getLocalIp();
     auto gateWayIp = HttpUtils::getGateWay(localIp);
-    qInfo("localIp: %s\n", localIp.toStdString().c_str());
-    qInfo("localIp: %s\n", gateWayIp.toStdString().c_str());
+    qInfo("localIp: %s", localIp.toStdString().c_str());
+    qInfo("localIp: %s", gateWayIp.toStdString().c_str());
     QString tempIp;
     for (int i = 2; i < 255; i++) {
         tempIp = HttpUtils::getIp(gateWayIp, i);
@@ -58,11 +58,11 @@ void ConnectService::searchIp()
 
             auto type = QSysInfo::productType();
             auto pingProcess = new QProcess();
-            qInfo("system type: %s\n", type.toStdString().c_str());
-            qInfo("ping: %s\n", tempIp.toStdString().c_str());
+            qInfo("system type: %s", type.toStdString().c_str());
+            qInfo("ping: %s", tempIp.toStdString().c_str());
             if (type == "windows")
             {
-                qInfo("is windows\n");
+                qInfo("is windows");
                 QStringList lst;
                 lst << tempIp;
                 lst << "-n" << "1";
@@ -73,7 +73,7 @@ void ConnectService::searchIp()
                 }
             } else if (type == "arch" || type == "ubuntu")
             {
-                qInfo("is linux\n");
+                qInfo("is linux");
                 QStringList lst;
                 lst << tempIp;
                 lst << "-c" << "1";
@@ -96,9 +96,10 @@ void ConnectService::searchIp()
     auto finish = QtConcurrent::run([this] {
         while (1)
         {
-            qInfo("finishNum: %d\n", this->finishNum);
+            qInfo("finishNum: %d", this->finishNum);
             if (this->finishNum == 253) {
-                emit(searchFinish());
+                emit(searchIpFinish());
+                qInfo("search ip Finish --------------------------------");
                 this->finishMutex.lock();
                 this->finishNum = 0;
                 this->finishMutex.unlock();
@@ -106,70 +107,54 @@ void ConnectService::searchIp()
             }
         }
     });
-    qInfo("search ip Finish --------------------------------\n");
 }
 
 void ConnectService::searchDevices()
 {
-    qInfo("searchDevices start\n");
-    QUrl baiduUrl;
-    baiduUrl.setScheme("http");
-    baiduUrl.setHost("api.vvhan.com");
-    baiduUrl.setPath("/api/love");
-    //baiduUrl.setQuery("");
-    QNetworkRequest baiduRequest;
-    baiduRequest.setUrl(baiduUrl);
-    auto breply = HttpUtils::get(baiduRequest);
-    qInfo("connect: %s\n", baiduUrl.toString().toStdString().c_str());
-    QObject::connect(breply, &QNetworkReply::finished, [breply]() {
-        if (breply->error() == QNetworkReply::NoError) {
-            auto replyText = breply->readAll();
-            qInfo("io reply: %s\n", replyText.toStdString().c_str());
-        }
-        breply->deleteLater();
-    });
-    QObject::connect(breply, &QNetworkReply::errorOccurred, [breply]() {
-        qInfo("json errorOccurred: %s\n", breply->errorString().toStdString().c_str());
-    });
+    qInfo("searchDevices start");
     for (int i = 0; i < this->ips.size(); i++) {
         auto ip = this->ips[i];
-        QNetworkRequest request;
         QUrl url;
         url.setScheme("http");
         url.setHost(ip);
         url.setPort(7677);
         url.setPath("/connect");
         url.setQuery("name=" + this->userName + "&id=" + this->deviceId);
-        //QString urlStr = "http://" + ip + ":7677/connect?name=" + this->userName + "&" + "id=" + this->deviceId;
-        QString urlStr = "http://" + ip + ":7677";
-        qInfo("connect(url): %s\n", url.toString().toStdString().c_str());
-        request.setUrl(url);
-        auto reply = HttpUtils::get(request);
-        qInfo("connect: %s\n", ip.toStdString().c_str());
-        QObject::connect(reply, &QNetworkReply::finished, [reply, this, ip]() {
-            if (reply->error() == QNetworkReply::NoError) {
-                QString replyText = reply->readAll();
-                qInfo("a: %d\n", (int)replyText.size());
-                qInfo("(%s)reply: %s\n", ip.toStdString().c_str(), replyText.toUtf8().toStdString().c_str());
-                QJsonDocument doc = QJsonDocument::fromJson(replyText.toUtf8());
-                QJsonObject obj = doc.object();
+        qInfo("connect(url): %s", url.toString().toStdString().c_str());
+
+        HttpUtils::get(url, [this, ip](QString replyText, bool errorp) {
+            this->deviceFinishMutex.lock();
+            this->deviceFinishN++;
+            this->deviceFinishMutex.unlock();
+            if (!errorp) {
+                qInfo("(%s)reply: %s", ip.toStdString().c_str(), replyText.toUtf8().toStdString().c_str());
+                QJsonObject obj = QJsonDocument::fromJson(replyText.toUtf8()).object();
                 QString name = obj.value(QString("name")).toString("-1");
                 QString device = obj.value(QString("device")).toString("-1");
-                qInfo("device: %s, name: %s\n", device.toStdString().c_str(), device.toStdString().c_str());
+
                 if (name != "-1" && device != "-1") {
+                    qInfo("device: %s, name: %s", device.toStdString().c_str(), name.toStdString().c_str());
                     if (name == this->userName) {
                         this->addDevices(device, ip);
                     } else {
-                        qInfo("another userName: %s\n", name.toStdString().c_str());
+                        qInfo("another userName: %s", name.toStdString().c_str());
                     }
-                } else {
                 }
+            } else {
+                qInfo("(%s)reply: error", ip.toStdString().c_str());
             }
-            reply->deleteLater();
-        });
-        QObject::connect(reply, &QNetworkReply::errorOccurred, [ip, reply]() {
-            qInfo("%s errorOccurred: %s\n", ip.toStdString().c_str(), reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toString().toStdString().c_str());
-            qInfo("%s errorOccurred: %s\n", ip.toStdString().c_str(), reply->errorString().toStdString().c_str());
         });
     }
+    auto finish = QtConcurrent:: run([this] {
+        while (1)
+        {
+            if (this->deviceFinishN == this->ips.size()) {
+                emit(searchDeviceFinish());
+                this->deviceFinishMutex.lock();
+                this->deviceFinishN = 0;
+                this->deviceFinishMutex.unlock();
+                break;
+            }
+        }
+    });
 }

@@ -5,6 +5,7 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QUrlQuery>
+#include <functional>
 
 class HttpUtils
 {
@@ -25,7 +26,9 @@ public:
     static QString getIp(QString &gateWay, int i);
 
 public:
-    static QNetworkReply * get(QNetworkRequest & request);
+    static QNetworkReply * get(const QUrl &url, std::function<void (QNetworkReply * reply)> const &finish, std::function<void (QNetworkReply * reply)> const &errorOccurred);
+    static QNetworkReply * get(const QUrl &url, std::function<void (QNetworkReply * reply)> const &finish);
+    static void get(const QUrl &url, std::function<void (QString replyText, bool errorp)> const &finish, bool showError = false);
     static QString post(QString url, QString data);
 };
 
